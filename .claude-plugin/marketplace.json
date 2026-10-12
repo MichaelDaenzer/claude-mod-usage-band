@@ -1,0 +1,12 @@
+{
+  "name": "mda-mods",
+  "owner": { "name": "Michael Daenzer" },
+  "description": "Personal Claude Code mods by Michael Daenzer",
+  "plugins": [
+    {
+      "name": "usage-band",
+      "source": "./usage-band",
+      "description": "Keeps context fill and the 5h / 7d rate-limit windows on screen above the prompt"
+    }
+  ]
+}
