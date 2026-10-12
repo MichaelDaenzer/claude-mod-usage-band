@@ -1,0 +1,5 @@
+{
+  "name": "mda-mods",
+  "owner": { "name": "Michael Daenzer" },
+  "plugins": [{ "name": "usage-band", "source": "./" }]
+}
