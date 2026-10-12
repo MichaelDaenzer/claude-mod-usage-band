@@ -7,7 +7,7 @@ A [Claude Code](https://claude.com/claude-code) mod that keeps your usage on scr
 
 Bars turn yellow at 70% and red at 90%. The band refreshes on every measurement the engine pushes: after each turn and whenever a window moves a whole point. No polling, no extra API calls.
 
-It draws on the terminal and in the Claude desktop app. The `[-]` mark beside the band collapses it.
+It draws on the terminal and in the Claude desktop app. The arrow handle at the band's top right collapses it to a one-line summary (`ctx 60% · 5h 23.5% · 7d 91%`) and expands it again.
 
 ## Install
 

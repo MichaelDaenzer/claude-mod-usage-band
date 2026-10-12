@@ -4,6 +4,7 @@ import type { Register, SessionContextUsage, SessionRateLimit } from 'claude-cod
 import type { UsageSnapshot } from '../types'
 
 const snapshot = atom({ plugin: 'usage-band', key: 'snapshot' } as const, null)
+const isCollapsed = atom({ plugin: 'usage-band', key: 'isCollapsed' } as const, false)
 
 type Figures = { context: SessionContextUsage; rateLimits: SessionRateLimit[] }
 
@@ -43,6 +44,13 @@ const LABEL_WIDTH = 4
 const levelColor = (percent: number): 'success' | 'warning' | 'error' =>
   percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'success'
 
+/** The one-line form the collapsed band shows: `ctx 60% · 5h 23.5% · 7d 91%`. */
+export const summaryText = (s: UsageSnapshot): string =>
+  [
+    s.contextPercent === undefined ? 'ctx –' : `ctx ${s.contextPercent}%`,
+    ...s.rateLimits.map(r => `${windowLabel(r.kind)} ${r.percentUsed}%`),
+  ].join(' · ')
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     $.ui.status(undefined) // clears a status line an earlier version of this mod pinned
@@ -61,45 +69,70 @@ export const register: Register = on => {
     if (e.props.hasSurvey || s === null) return next(e)
 
     const now = await $.clock.now()
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const collapsed = await read($, isCollapsed)
+    const toggle = (
+      <Button
+        key="toggle"
+        plain
+        dimColor
+        label={collapsed ? '▸' : '▾'}
+        onPress={() => update($, isCollapsed, v => !v)}
+      />
+    )
+
+    if (collapsed) {
+      return (
+        <Box flexDirection="row" justifyContent="space-between">
+          <Box key="summary">
+            <Text dimColor>{summaryText(s)}</Text>
+          </Box>
+          {toggle}
+        </Box>
+      )
+    }
+
     const barWidth = e.props.bodyColumns >= 80 ? 20 : 10
     const ctx = s.contextPercent
 
     return (
-      <Box flexDirection="column">
-        <Box key="context" gap={1}>
-          <Box width={LABEL_WIDTH}>
-            <Text dimColor>ctx</Text>
-          </Box>
-          {ctx === undefined ? (
-            <Text dimColor>–/{formatTokens(s.contextWindow)}</Text>
-          ) : (
-            <Box gap={1}>
-              <Text color={levelColor(ctx)}>{bar(ctx, barWidth)}</Text>
-              <Text bold color={levelColor(ctx)}>{ctx}%</Text>
-              <Text dimColor>
-                {formatTokens(s.contextTokens ?? 0)}/{formatTokens(s.contextWindow)}
-              </Text>
+      <Box flexDirection="row" justifyContent="space-between" alignItems="flex-start">
+        <Box flexDirection="column">
+          <Box key="context" gap={1}>
+            <Box width={LABEL_WIDTH}>
+              <Text dimColor>ctx</Text>
             </Box>
-          )}
-        </Box>
-        {s.rateLimits.length > 0 ? (
-          <Box key="limits" flexDirection="row" gap={3}>
-            {s.rateLimits.map((r, i) => {
-              const reset = resetIn(r.resetsAt, now)
-              return (
-                <Box key={`limit-${r.kind}`} gap={1}>
-                  <Box width={i === 0 ? LABEL_WIDTH : undefined}>
-                    <Text dimColor>{windowLabel(r.kind)}</Text>
-                  </Box>
-                  <Text color={levelColor(r.percentUsed)}>{bar(r.percentUsed, barWidth)}</Text>
-                  <Text bold color={levelColor(r.percentUsed)}>{r.percentUsed}%</Text>
-                  {reset ? <Text dimColor>↻ {reset}</Text> : null}
-                </Box>
-              )
-            })}
+            {ctx === undefined ? (
+              <Text dimColor>–/{formatTokens(s.contextWindow)}</Text>
+            ) : (
+              <Box gap={1}>
+                <Text color={levelColor(ctx)}>{bar(ctx, barWidth)}</Text>
+                <Text bold color={levelColor(ctx)}>{ctx}%</Text>
+                <Text dimColor>
+                  {formatTokens(s.contextTokens ?? 0)}/{formatTokens(s.contextWindow)}
+                </Text>
+              </Box>
+            )}
           </Box>
-        ) : null}
+          {s.rateLimits.length > 0 ? (
+            <Box key="limits" flexDirection="row" gap={3}>
+              {s.rateLimits.map((r, i) => {
+                const reset = resetIn(r.resetsAt, now)
+                return (
+                  <Box key={`limit-${r.kind}`} gap={1}>
+                    <Box width={i === 0 ? LABEL_WIDTH : undefined}>
+                      <Text dimColor>{windowLabel(r.kind)}</Text>
+                    </Box>
+                    <Text color={levelColor(r.percentUsed)}>{bar(r.percentUsed, barWidth)}</Text>
+                    <Text bold color={levelColor(r.percentUsed)}>{r.percentUsed}%</Text>
+                    {reset ? <Text dimColor>↻ {reset}</Text> : null}
+                  </Box>
+                )
+              })}
+            </Box>
+          ) : null}
+        </Box>
+        {toggle}
       </Box>
     )
   })

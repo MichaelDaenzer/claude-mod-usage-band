@@ -1,7 +1,7 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { bar, formatTokens, resetIn } from '../hooks/register'
+import { bar, formatTokens, resetIn, summaryText } from '../hooks/register'
 
 const BAND = {
   plugin: 'usage-band',
@@ -76,6 +76,32 @@ test('band shows context and rate limits after a measurement', async ($, on) => 
     expect(limits?.text).toContain('5h')
     expect(limits?.text).toContain('7d')
     expect(limits?.text).not.toContain('$')
+    await ui.unmount()
+  }
+})
+
+test('the handle collapses the band to one line and expands it again', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  empty(on)
+  on('session.usage', () => ({ value: { startedAt: NOW, ...FIGURES } }))
+  on('session.measure', (_$, e) => ({ changed: e.changed }))
+  await $.session.measure({ ...FIGURES, changed: ['context', 'rateLimits'] })
+
+  expect(summaryText({ contextTokens: 120_000, contextWindow: 200_000, contextPercent: 60, rateLimits: FIGURES.rateLimits })).toBe(
+    'ctx 60% · 5h 23.5% · 7d 91%',
+  )
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...BAND, surface })
+    expect(await ui.find({ type: 'Box', key: 'limits' })).toBeDefined()
+    expect(await ui.find({ type: 'Box', key: 'summary' })).toBeUndefined()
+
+    await ui.press({ key: 'toggle' })
+    expect(await ui.find({ type: 'Box', key: 'limits' })).toBeUndefined()
+    expect((await ui.find({ type: 'Box', key: 'summary' }))?.text).toBe('ctx 60% · 5h 23.5% · 7d 91%')
+
+    await ui.press({ key: 'toggle' })
+    expect(await ui.find({ type: 'Box', key: 'limits' })).toBeDefined()
     await ui.unmount()
   }
 
