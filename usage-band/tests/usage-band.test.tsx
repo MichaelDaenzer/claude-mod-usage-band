@@ -1,7 +1,7 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { bar, formatTokens, resetIn, summaryText } from '../hooks/register'
+import { barFill, formatTokens, resetIn, summaryText } from '../hooks/register'
 
 const BAND = {
   plugin: 'usage-band',
@@ -31,9 +31,10 @@ test('formatting helpers', () => {
   expect(formatTokens(950)).toBe('950')
   expect(formatTokens(120_000)).toBe('120k')
   expect(formatTokens(1_500_000)).toBe('1.5M')
-  expect(bar(50, 10)).toBe('█████░░░░░')
-  expect(bar(0, 4)).toBe('░░░░')
-  expect(bar(100, 4)).toBe('████')
+  expect(barFill(50, 10)).toBe(5)
+  expect(barFill(0, 4)).toBe(0)
+  expect(barFill(100, 4)).toBe(4)
+  expect(barFill(130, 4)).toBe(4)
   expect(resetIn('2026-10-12T12:30:00Z', NOW)).toBe('2h 30m')
   expect(resetIn('2026-10-15T10:00:00Z', NOW)).toBe('3d')
   expect(resetIn(undefined, NOW)).toBe('')

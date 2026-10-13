@@ -33,10 +33,9 @@ export const resetIn = (resetsAt: string | undefined, now: number): string => {
   return `${days}d${hours % 24 ? ` ${hours % 24}h` : ''}`
 }
 
-export const bar = (percent: number, width: number): string => {
-  const filled = Math.max(0, Math.min(width, Math.round((percent / 100) * width)))
-  return '█'.repeat(filled) + '░'.repeat(width - filled)
-}
+/** How many of `width` cells a bar fills at `percent`. */
+export const barFill = (percent: number, width: number): number =>
+  Math.max(0, Math.min(width, Math.round((percent / 100) * width)))
 
 /** Width of the leading label column, so the first bar of each row starts at one edge. */
 const LABEL_WIDTH = 4
@@ -76,7 +75,7 @@ export const register: Register = on => {
         key="toggle"
         plain
         dimColor
-        label={collapsed ? '▸' : '▾'}
+        label={collapsed ? '▶' : '▼'}
         onPress={() => update($, isCollapsed, v => !v)}
       />
     )
@@ -106,7 +105,10 @@ export const register: Register = on => {
               <Text dimColor>–/{formatTokens(s.contextWindow)}</Text>
             ) : (
               <Box gap={1}>
-                <Text color={levelColor(ctx)}>{bar(ctx, barWidth)}</Text>
+                <Box>
+                  <Text color={levelColor(ctx)}>{'█'.repeat(barFill(ctx, barWidth))}</Text>
+                  <Text backgroundColor="white">{' '.repeat(barWidth - barFill(ctx, barWidth))}</Text>
+                </Box>
                 <Text bold color={levelColor(ctx)}>{ctx}%</Text>
                 <Text dimColor>
                   {formatTokens(s.contextTokens ?? 0)}/{formatTokens(s.contextWindow)}
@@ -123,7 +125,10 @@ export const register: Register = on => {
                     <Box width={i === 0 ? LABEL_WIDTH : undefined}>
                       <Text dimColor>{windowLabel(r.kind)}</Text>
                     </Box>
-                    <Text color={levelColor(r.percentUsed)}>{bar(r.percentUsed, barWidth)}</Text>
+                    <Box>
+                      <Text color={levelColor(r.percentUsed)}>{'█'.repeat(barFill(r.percentUsed, barWidth))}</Text>
+                      <Text backgroundColor="white">{' '.repeat(barWidth - barFill(r.percentUsed, barWidth))}</Text>
+                    </Box>
                     <Text bold color={levelColor(r.percentUsed)}>{r.percentUsed}%</Text>
                     {reset ? <Text dimColor>↻ {reset}</Text> : null}
                   </Box>
