@@ -40,6 +40,9 @@ export const barFill = (percent: number, width: number): number =>
 /** Width of the leading label column, so the first bar of each row starts at one edge. */
 const LABEL_WIDTH = 4
 
+/** The unfilled part of a bar: the same block glyph as the fill, in the theme's muted grey, so both parts are the same width in any font. */
+const TRACK_COLOR = 'inactive'
+
 const levelColor = (percent: number): 'success' | 'warning' | 'error' =>
   percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'success'
 
@@ -107,7 +110,7 @@ export const register: Register = on => {
               <Box gap={1}>
                 <Box>
                   <Text color={levelColor(ctx)}>{'█'.repeat(barFill(ctx, barWidth))}</Text>
-                  <Text backgroundColor="white">{' '.repeat(barWidth - barFill(ctx, barWidth))}</Text>
+                  <Text color={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(ctx, barWidth))}</Text>
                 </Box>
                 <Text bold color={levelColor(ctx)}>{ctx}%</Text>
                 <Text dimColor>
@@ -127,7 +130,7 @@ export const register: Register = on => {
                     </Box>
                     <Box>
                       <Text color={levelColor(r.percentUsed)}>{'█'.repeat(barFill(r.percentUsed, barWidth))}</Text>
-                      <Text backgroundColor="white">{' '.repeat(barWidth - barFill(r.percentUsed, barWidth))}</Text>
+                      <Text color={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(r.percentUsed, barWidth))}</Text>
                     </Box>
                     <Text bold color={levelColor(r.percentUsed)}>{r.percentUsed}%</Text>
                     {reset ? <Text dimColor>↻ {reset}</Text> : null}
