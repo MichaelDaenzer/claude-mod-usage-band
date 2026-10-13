@@ -1,7 +1,7 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { barFill, formatTokens, resetIn, summaryText } from '../hooks/register'
+import { CACHE_TTL_MS, barFill, cacheText, formatTokens, resetIn, summaryText } from '../hooks/register'
 
 const BAND = {
   plugin: 'usage-band',
@@ -88,9 +88,13 @@ test('the handle collapses the band to one line and expands it again', async ($,
   on('session.measure', (_$, e) => ({ changed: e.changed }))
   await $.session.measure({ ...FIGURES, changed: ['context', 'rateLimits'] })
 
-  expect(summaryText({ contextTokens: 120_000, contextWindow: 200_000, contextPercent: 60, rateLimits: FIGURES.rateLimits })).toBe(
-    'ctx 60% · 5h 23.5% · 7d 91%',
-  )
+  expect(
+    summaryText(
+      { contextTokens: 120_000, contextWindow: 200_000, contextPercent: 60, rateLimits: FIGURES.rateLimits },
+      { expiresAt: null, isBusy: false },
+      NOW,
+    ),
+  ).toBe('ctx 60% · 5h 23.5% · 7d 91% · cache cold')
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
@@ -99,7 +103,7 @@ test('the handle collapses the band to one line and expands it again', async ($,
 
     await ui.press({ key: 'toggle' })
     expect(await ui.find({ type: 'Box', key: 'limits' })).toBeUndefined()
-    expect((await ui.find({ type: 'Box', key: 'summary' }))?.text).toBe('ctx 60% · 5h 23.5% · 7d 91%')
+    expect((await ui.find({ type: 'Box', key: 'summary' }))?.text).toBe('ctx 60% · 5h 23.5% · 7d 91% · cache cold')
 
     await ui.press({ key: 'toggle' })
     expect(await ui.find({ type: 'Box', key: 'limits' })).toBeDefined()
@@ -109,4 +113,35 @@ test('the handle collapses the band to one line and expands it again', async ($,
   const survey = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, hasSurvey: true } })
   expect(await survey.find({ type: 'Box', key: 'context' })).toBeUndefined()
   await survey.unmount()
+})
+
+test('cache wording: cold, in use, then a countdown that runs out', () => {
+  expect(cacheText({ expiresAt: null, isBusy: false }, NOW)).toBe('cold')
+  expect(cacheText({ expiresAt: null, isBusy: true }, NOW)).toBe('hot · in use')
+  expect(cacheText({ expiresAt: NOW + CACHE_TTL_MS, isBusy: false }, NOW)).toBe('hot · 60m')
+  expect(cacheText({ expiresAt: NOW + 59_000, isBusy: false }, NOW)).toBe('hot · 59s')
+  expect(cacheText({ expiresAt: NOW, isBusy: false }, NOW)).toBe('cold')
+})
+
+test('the band shows the cache going hot after an answer and cold after the TTL', async ($, on) => {
+  const clock = mock.clock(on, { now: NOW })
+  empty(on)
+  on('session.usage', () => ({ value: { startedAt: NOW, ...FIGURES } }))
+  on('session.measure', (_$, e) => ({ changed: e.changed }))
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_$, e) => ({ text: e.answer }))
+  await $.session.measure({ ...FIGURES, changed: ['context', 'rateLimits'] })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await ui.find({ type: 'Box', key: 'cache' }))?.text).toContain('cold')
+
+  await $.turn.start({ text: 'hi', turnId: 't1' })
+  expect((await ui.find({ type: 'Box', key: 'cache' }))?.text).toContain('in use')
+
+  await $.turn.complete({ answer: 'ok', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' })
+  expect((await ui.find({ type: 'Box', key: 'cache' }))?.text).toContain('hot · 60m')
+
+  await clock.advance(CACHE_TTL_MS + 1000)
+  expect((await ui.find({ type: 'Box', key: 'cache' }))?.text).toContain('cold')
+  await ui.unmount()
 })

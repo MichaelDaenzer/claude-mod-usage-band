@@ -3,6 +3,7 @@
 A [Claude Code](https://claude.com/claude-code) mod that keeps your usage on screen: a band directly above the prompt with
 
 - **ctx**: how full the context window is, as a bar, a percentage and tokens used over the window size
+- **cache**: whether the prompt cache is hot, and for how long: `hot · 58m` counts down to the moment it goes cold, `hot · in use` while a turn runs, `cold` otherwise (turns yellow in the last 10 minutes)
 - **5h / 7d**: the subscription rate-limit windows, each with percent used and the time until it resets
 
 Bars turn yellow at 70% and red at 90%. The band refreshes on every measurement the engine pushes: after each turn and whenever a window moves a whole point. No polling, no extra API calls.
@@ -22,6 +23,8 @@ Answer `y` to add the marketplace, then pick the **user** scope so it loads in e
 ## Limits
 
 The plugin API exposes only the 5h and 7d windows (and a gateway spend limit). Per-model weekly windows, such as the one for Fable, are not reachable by mods as of Claude Code 2.1.295.
+
+The cache countdown assumes the 1-hour prompt-cache TTL, timed from the end of each answer; the API does not report the session's TTL, so it is wrong by design for the 5-minute cache used under usage overage.
 
 ## Development
 
