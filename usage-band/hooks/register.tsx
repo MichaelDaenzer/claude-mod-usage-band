@@ -40,8 +40,14 @@ export const barFill = (percent: number, width: number): number =>
 /** Width of the leading label column, so the first bar of each row starts at one edge. */
 const LABEL_WIDTH = 4
 
-/** The unfilled part of a bar: the same block glyph as the fill, in the theme's muted grey, so both parts are the same width in any font. */
-const TRACK_COLOR = 'inactive'
+/**
+ * The unfilled part of a bar: the same block glyph as the fill, in the theme's
+ * subtle grey (close to the panel background in light and dark themes), so
+ * both parts are the same width in any font. Each span also paints its
+ * background in its own color, which fills the hairline gaps a proportional
+ * font leaves between block glyphs.
+ */
+const TRACK_COLOR = 'subtle'
 
 const levelColor = (percent: number): 'success' | 'warning' | 'error' =>
   percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'success'
@@ -109,8 +115,8 @@ export const register: Register = on => {
             ) : (
               <Box gap={1}>
                 <Box>
-                  <Text color={levelColor(ctx)}>{'█'.repeat(barFill(ctx, barWidth))}</Text>
-                  <Text color={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(ctx, barWidth))}</Text>
+                  <Text color={levelColor(ctx)} backgroundColor={levelColor(ctx)}>{'█'.repeat(barFill(ctx, barWidth))}</Text>
+                  <Text color={TRACK_COLOR} backgroundColor={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(ctx, barWidth))}</Text>
                 </Box>
                 <Text bold color={levelColor(ctx)}>{ctx}%</Text>
                 <Text dimColor>
@@ -129,8 +135,8 @@ export const register: Register = on => {
                       <Text dimColor>{windowLabel(r.kind)}</Text>
                     </Box>
                     <Box>
-                      <Text color={levelColor(r.percentUsed)}>{'█'.repeat(barFill(r.percentUsed, barWidth))}</Text>
-                      <Text color={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(r.percentUsed, barWidth))}</Text>
+                      <Text color={levelColor(r.percentUsed)} backgroundColor={levelColor(r.percentUsed)}>{'█'.repeat(barFill(r.percentUsed, barWidth))}</Text>
+                      <Text color={TRACK_COLOR} backgroundColor={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(r.percentUsed, barWidth))}</Text>
                     </Box>
                     <Text bold color={levelColor(r.percentUsed)}>{r.percentUsed}%</Text>
                     {reset ? <Text dimColor>↻ {reset}</Text> : null}
