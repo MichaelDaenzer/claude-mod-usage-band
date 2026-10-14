@@ -1,0 +1,12 @@
+{
+  "name": "session-stats",
+  "owner": { "name": "Michael Daenzer" },
+  "description": "Session summary sidebar for Claude Code",
+  "plugins": [
+    {
+      "name": "session-summary",
+      "source": "./",
+      "description": "Sidebar with a running summary of the session: tokens, tools, skills, connectors, subagents and activity"
+    }
+  ]
+}

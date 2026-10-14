@@ -7,6 +7,11 @@
       "name": "usage-band",
       "source": "./usage-band",
       "description": "Keeps context fill and the 5h / 7d rate-limit windows on screen above the prompt"
+    },
+    {
+      "name": "session-summary",
+      "source": "./session-summary",
+      "description": "Sidebar with a running summary of the session: tokens, tools, skills, connectors, subagents and activity"
     }
   ]
 }

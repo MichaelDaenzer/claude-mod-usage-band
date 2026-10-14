@@ -1,0 +1,9 @@
+{
+  "name": "session-summary",
+  "version": "0.1.0",
+  "description": "Sidebar with a running summary of the session: tokens, tools, skills, connectors, subagents and activity",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Michael Daenzer"
+  }
+}
