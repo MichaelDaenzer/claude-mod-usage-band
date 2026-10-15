@@ -145,3 +145,24 @@ test('the band shows the cache going hot after an answer and cold after the TTL'
   expect((await ui.find({ type: 'Box', key: 'cache' }))?.text).toContain('cold')
   await ui.unmount()
 })
+
+test('the bars shrink with the band and the handle stays', async ($, on) => {
+  mock.clock(on, { now: NOW })
+  empty(on)
+  on('session.usage', () => ({ value: { startedAt: NOW, ...FIGURES } }))
+  on('session.measure', (_$, e) => ({ changed: e.changed }))
+  await $.session.measure({ ...FIGURES, changed: ['context', 'rateLimits'] })
+
+  const blocks = (text: string | undefined) => (text ?? '').split('█').length - 1
+  for (const [bodyColumns, expected] of [
+    [120, 20],
+    [80, 13],
+    [60, 4],
+  ] as const) {
+    const ui = await $.ui.mount({ ...BAND, surface: 'desktop', props: { ...BAND.props, bodyColumns } })
+    expect(blocks((await ui.find({ type: 'Box', key: 'context' }))?.text)).toBe(expected)
+    expect(blocks((await ui.find({ type: 'Box', key: 'limit-seven_day' }))?.text)).toBe(expected)
+    expect(await ui.find({ type: 'Button', key: 'toggle' })).toBeDefined()
+    await ui.unmount()
+  }
+})

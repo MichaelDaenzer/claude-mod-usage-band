@@ -73,6 +73,12 @@ const LABEL_WIDTH = 4
 const LABEL2_WIDTH = 6
 /** The unfilled part of a bar: the same block glyph as the fill, in a light grey, so both parts are the same width in any font. */
 const TRACK_COLOR = '#d9d9d9'
+/** Cells between the two columns. */
+const COLUMN_GAP = 3
+/** Cells kept for the collapse handle and a margin before it. */
+const HANDLE_WIDTH = 4
+const MIN_BAR_WIDTH = 4
+const MAX_BAR_WIDTH = 20
 
 const levelColor = (percent: number): 'success' | 'warning' | 'error' =>
   percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'success'
@@ -156,19 +162,28 @@ export const register: Register = on => {
 
     if (collapsed) {
       return (
-        <Box flexDirection="row" justifyContent="space-between">
-          <Box key="summary">
-            <Text dimColor>{summaryText(s, c, now)}</Text>
+        <Box flexDirection="row" flexWrap="nowrap" justifyContent="space-between">
+          <Box key="summary" flexShrink={1}>
+            <Text dimColor wrap="truncate-end">{summaryText(s, c, now)}</Text>
           </Box>
-          {toggle}
+          <Box flexShrink={0} marginLeft={1}>
+            {toggle}
+          </Box>
         </Box>
       )
     }
 
-    const barWidth = e.props.bodyColumns >= 80 ? 20 : 10
+    // Cells each column needs besides its bar: label, gaps, `100%`, and the
+    // tokens text (`257k/1.0M`) or the reset text (`↻ 23h 59m`).
+    const column1Fixed = LABEL_WIDTH + 1 + 1 + 5 + 1 + 10
+    const column2Fixed = LABEL2_WIDTH + 1 + 1 + 5 + 1 + 10
+    // The bars take what is left of the band's width, between 4 and 20 cells,
+    // so a narrow window shrinks the bars and never the handle.
+    const available = e.props.bodyColumns - HANDLE_WIDTH - COLUMN_GAP - column1Fixed - column2Fixed
+    const barWidth = Math.max(MIN_BAR_WIDTH, Math.min(MAX_BAR_WIDTH, Math.floor(available / 2)))
     // The first column holds the context cell and the first window's cell at
     // this width, so the second column (cache above, the second window below) lines up.
-    const columnWidth = LABEL_WIDTH + 1 + barWidth + 1 + 5 + 1 + 10
+    const columnWidth = column1Fixed + barWidth
     const ctx = s.contextPercent
     const [first, ...rest] = s.rateLimits
 
@@ -196,9 +211,9 @@ export const register: Register = on => {
     const color = cacheColor(c, now)
 
     return (
-      <Box flexDirection="row" justifyContent="space-between" alignItems="flex-start">
-        <Box flexDirection="column">
-          <Box flexDirection="row" gap={3}>
+      <Box flexDirection="row" flexWrap="nowrap" justifyContent="space-between" alignItems="flex-start">
+        <Box flexDirection="column" flexShrink={1}>
+          <Box flexDirection="row" gap={COLUMN_GAP}>
             <Box key="context" width={columnWidth} gap={1}>
               <Box width={LABEL_WIDTH}>
                 <Text dimColor>ctx</Text>
@@ -227,13 +242,15 @@ export const register: Register = on => {
             </Box>
           </Box>
           {first ? (
-            <Box key="limits" flexDirection="row" gap={3}>
+            <Box key="limits" flexDirection="row" gap={COLUMN_GAP}>
               <Box width={columnWidth}>{windowCell(first, LABEL_WIDTH)}</Box>
               {rest.map(r => windowCell(r, LABEL2_WIDTH))}
             </Box>
           ) : null}
         </Box>
-        {toggle}
+        <Box flexShrink={0} marginLeft={1}>
+          {toggle}
+        </Box>
       </Box>
     )
   })

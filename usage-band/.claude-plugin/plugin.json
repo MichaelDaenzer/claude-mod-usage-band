@@ -1,6 +1,6 @@
 {
   "name": "usage-band",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Keeps context fill, rate-limit windows and session cost on screen above the prompt",
   "types": "./types/index.d.ts",
   "author": {
