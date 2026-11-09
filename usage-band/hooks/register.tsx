@@ -79,6 +79,10 @@ const COLUMN_GAP = 3
 const HANDLE_WIDTH = 4
 const MIN_BAR_WIDTH = 4
 const MAX_BAR_WIDTH = 20
+/** Cells for the value after a bar (`100%`). */
+const VALUE_WIDTH = 5
+/** Cells for the text after the value (`257k/1.0M`, `↻ 23h 59m`). */
+const DETAIL_WIDTH = 10
 
 const levelColor = (percent: number): 'success' | 'warning' | 'error' =>
   percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'success'
@@ -173,77 +177,102 @@ export const register: Register = on => {
       )
     }
 
-    // Cells each column needs besides its bar: label, gaps, `100%`, and the
-    // tokens text (`257k/1.0M`) or the reset text (`↻ 23h 59m`).
-    const column1Fixed = LABEL_WIDTH + 1 + 1 + 5 + 1 + 10
-    const column2Fixed = LABEL2_WIDTH + 1 + 1 + 5 + 1 + 10
+    // Cells each column needs besides its bar: label, three one-cell gaps,
+    // `100%`, and the tokens text (`257k/1.0M`) or the reset text (`↻ 23h 59m`).
+    const column1Fixed = LABEL_WIDTH + 1 + 1 + VALUE_WIDTH + 1 + DETAIL_WIDTH
+    const column2Fixed = LABEL2_WIDTH + 1 + 1 + VALUE_WIDTH + 1 + DETAIL_WIDTH
     // The bars take what is left of the band's width, between 4 and 20 cells,
     // so a narrow window shrinks the bars and never the handle.
     const available = e.props.bodyColumns - HANDLE_WIDTH - COLUMN_GAP - column1Fixed - column2Fixed
     const barWidth = Math.max(MIN_BAR_WIDTH, Math.min(MAX_BAR_WIDTH, Math.floor(available / 2)))
-    // The first column holds the context cell and the first window's cell at
-    // this width, so the second column (cache above, the second window below) lines up.
-    const columnWidth = column1Fixed + barWidth
     const ctx = s.contextPercent
     const [first, ...rest] = s.rateLimits
 
-    const bar = (percent: number) => (
-      <Box>
-        <Text color={levelColor(percent)}>{'█'.repeat(barFill(percent, barWidth))}</Text>
-        <Text color={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(percent, barWidth))}</Text>
+    // Every cell is a row of fixed-width boxes (label, gap, bar, gap, value,
+    // gap, detail), so the grid lines up without relying on how a surface
+    // stretches or shrinks flex children. A cell with no bar leaves it out.
+    const fixed = (width: number, child: JSX.Element | null) => (
+      <Box width={width} flexShrink={0}>
+        {child}
+      </Box>
+    )
+    const gap = (width: number) => fixed(width, null)
+
+    const bar = (percent: number) =>
+      fixed(
+        barWidth,
+        <Box>
+          <Text color={levelColor(percent)}>{'█'.repeat(barFill(percent, barWidth))}</Text>
+          <Text color={TRACK_COLOR}>{'█'.repeat(barWidth - barFill(percent, barWidth))}</Text>
+        </Box>,
+      )
+
+    const cell = (
+      key: string,
+      label: string,
+      labelWidth: number,
+      body: { percent: number; value: string; detail: string } | { text: string; color?: 'success' | 'warning' },
+    ) => (
+      <Box key={key} flexDirection="row" flexShrink={0}>
+        {fixed(labelWidth, <Text dimColor>{label}</Text>)}
+        {gap(1)}
+        {'percent' in body ? (
+          <Box flexDirection="row" flexShrink={0}>
+            {bar(body.percent)}
+            {gap(1)}
+            {fixed(
+              VALUE_WIDTH,
+              <Text bold color={levelColor(body.percent)}>
+                {body.value}
+              </Text>,
+            )}
+            {gap(1)}
+            {fixed(
+              DETAIL_WIDTH,
+              <Text dimColor wrap="truncate-end">
+                {body.detail}
+              </Text>,
+            )}
+          </Box>
+        ) : body.color ? (
+          <Text bold color={body.color}>
+            {body.text}
+          </Text>
+        ) : (
+          <Text dimColor>{body.text}</Text>
+        )}
       </Box>
     )
 
-    const windowCell = (r: NonNullable<typeof first>, labelWidth: number) => {
-      const reset = resetIn(r.resetsAt, now)
-      return (
-        <Box key={`limit-${r.kind}`} gap={1}>
-          <Box width={labelWidth}>
-            <Text dimColor>{windowLabel(r.kind)}</Text>
-          </Box>
-          {bar(r.percentUsed)}
-          <Text bold color={levelColor(r.percentUsed)}>{r.percentUsed}%</Text>
-          {reset ? <Text dimColor>↻ {reset}</Text> : null}
-        </Box>
-      )
-    }
+    const windowCell = (r: NonNullable<typeof first>, labelWidth: number) =>
+      cell(`limit-${r.kind}`, windowLabel(r.kind), labelWidth, {
+        percent: r.percentUsed,
+        value: `${r.percentUsed}%`,
+        detail: resetIn(r.resetsAt, now) ? `↻ ${resetIn(r.resetsAt, now)}` : '',
+      })
 
-    const color = cacheColor(c, now)
+    const contextCell =
+      ctx === undefined
+        ? cell('context', 'ctx', LABEL_WIDTH, { text: `–/${formatTokens(s.contextWindow)}` })
+        : cell('context', 'ctx', LABEL_WIDTH, {
+            percent: ctx,
+            value: `${ctx}%`,
+            detail: `${formatTokens(s.contextTokens ?? 0)}/${formatTokens(s.contextWindow)}`,
+          })
+    const cacheCell = cell('cache', 'cache', LABEL2_WIDTH, { text: cacheText(c, now), color: cacheColor(c, now) })
 
     return (
       <Box flexDirection="row" flexWrap="nowrap" justifyContent="space-between" alignItems="flex-start">
         <Box flexDirection="column" flexShrink={1}>
-          <Box flexDirection="row" gap={COLUMN_GAP}>
-            <Box key="context" width={columnWidth} gap={1}>
-              <Box width={LABEL_WIDTH}>
-                <Text dimColor>ctx</Text>
-              </Box>
-              {ctx === undefined ? (
-                <Text dimColor>–/{formatTokens(s.contextWindow)}</Text>
-              ) : (
-                <Box gap={1}>
-                  {bar(ctx)}
-                  <Text bold color={levelColor(ctx)}>{ctx}%</Text>
-                  <Text dimColor>
-                    {formatTokens(s.contextTokens ?? 0)}/{formatTokens(s.contextWindow)}
-                  </Text>
-                </Box>
-              )}
-            </Box>
-            <Box key="cache" gap={1}>
-              <Box width={LABEL2_WIDTH}>
-                <Text dimColor>cache</Text>
-              </Box>
-              {color ? (
-                <Text bold color={color}>{cacheText(c, now)}</Text>
-              ) : (
-                <Text dimColor>{cacheText(c, now)}</Text>
-              )}
-            </Box>
+          <Box flexDirection="row" flexShrink={0}>
+            {contextCell}
+            {gap(COLUMN_GAP)}
+            {cacheCell}
           </Box>
           {first ? (
-            <Box key="limits" flexDirection="row" gap={COLUMN_GAP}>
-              <Box width={columnWidth}>{windowCell(first, LABEL_WIDTH)}</Box>
+            <Box key="limits" flexDirection="row" flexShrink={0}>
+              {windowCell(first, LABEL_WIDTH)}
+              {gap(COLUMN_GAP)}
               {rest.map(r => windowCell(r, LABEL2_WIDTH))}
             </Box>
           ) : null}
